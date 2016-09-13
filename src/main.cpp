@@ -288,7 +288,8 @@ int recordDataLine()
 
 
 	// Nice to have a line that tells us what we're looking at while debugging
-	//data_fh << "YYYY-MM-DD_HHMMSS,Coord_X,Coord_Y,Coord_Z,Heading,Accel_X,Accel_Y,Accel_Z" << endl;
+	data_fh << "YYYY-MM-DD_HHMMSS,Coord_X,Coord_Y,Coord_Z,Heading,Accel_X,Accel_Y,Accel_Z" <<
+                   ",GPS_Feed" <<endl;
 	data_fh << getDateTime()
             << "," << lsm_sh->getCoorX()
             << "," << lsm_sh->getCoorY()
@@ -297,11 +298,11 @@ int recordDataLine()
 			<< "," << lsm_sh->getAccelX()
 			<< "," << lsm_sh->getAccelY()
 			<< "," << lsm_sh->getAccelZ()
-			<< ",";
+			<< "," << endl;
 
     // The buffer is normally 245b (GGA,GSA,RMC,VTG)
     // Sometimes it jumps to ~440b due to receiving 3 GSV sentences
-    int bufferLength = 480;
+    int bufferLength = 500;
     int testCount = 0;
     bool keepRunning = true;
     char GPGGA[] = "$GPGGA";
@@ -316,31 +317,26 @@ int recordDataLine()
 
         	if (num_bytes_read > 0)
         	{
-    			char oneLine[81];
         		//weak sauce validity check
         		if (strncmp(GPGGA, nmeaBuffer,3) == 0)
         		{
         			keepRunning = false;
-					memcpy(oneLine, nmeaBuffer, 81);
-	        		data_fh.write(oneLine, 81);
-	        		//data_fh << oneLine;  //Bad, causes bad things to happen
+				data_fh.write(nmeaBuffer,num_bytes_read);
         		}
-
-            	//write(1, nmeaBuffer, num_bytes_read);
         	}
 
         	else if (num_bytes_read < 0)
-            {
-            	char msg[] = "GPS is not reading";
-            	log(msg, WARN);
-            }
+            	{
+            		char msg[] = "GPS is not reading";
+            		log(msg, WARN);
+            	}
 
-            usleep(100000); // 100ms
+            	usleep(100000); // 100ms
 
-            // Attempt for 2s or fail
-            testCount++;
-			if (testCount >=20)
-				keepRunning = false;
+            	// Attempt for 2s or fail
+            	testCount++;
+		if (testCount >=20)
+			keepRunning = false;
         }
     }
     data_fh << endl;
