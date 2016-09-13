@@ -25,6 +25,7 @@ static fstream data_fh;
 static upm::Ublox6* gps_sh;
 static upm::LSM303* lsm_sh;
 static char dateTime[18];
+static INIReader* reader;
 
 /* Skeletons */
 int init_log();
@@ -53,13 +54,11 @@ int main()
     if (rc == 0)
     {
     	char msg[] = "Failed to get DateTime";
-        cerr << msg << endl;
+        cerr << msg << rc << endl;
         return rc;
     }
     else
-    {
-    	startTime = dateTime;
-    }
+     	startTime = dateTime;
 
     rc = init_log();
     if (rc > 0)
@@ -86,7 +85,7 @@ int main()
     }
 
     rc = init_gps();
-    if (rc > 0)
+    if (rc != 0)
     {
     	char msg[] = "Failed to initialize GPS";
         cerr << msg << endl;
@@ -94,23 +93,28 @@ int main()
     }
 
     rc = init_lsm();
-    if (rc > 0)
+    if (rc != 0)
     {
     	char msg[] = "Failed to initialize Accelerometer";
         cerr << msg << endl;
         return rc;
     }
 
-    // Do a sample read 10 times
-    for (int n = 0; n<10; n++)
+    // Log while device is marked as active
+    while (reader->GetBoolean("device", "active", true))
+    {
     	recordDataLine();
+    	// Manual reset of config containing active flag until UI is written
+    	init_config();
+    }
 
+    //TODO: Sleep when not active rather than shut down
     shutdown();
     return 0;
 }
 
 /*
- * Open the admin log file in append mode.
+ * Open the log file in append mode.
  * Eventually will need to handle this better by splitting logs
  * into smaller partitions such as by date or journey
  */
@@ -130,8 +134,8 @@ int init_log()
 }
 
 /*
- * Read in the configuration file using the INIReader library.  We currently
- * do not have any usable configuration, but this will surely change.
+ * Read in the configuration file using the INIReader library.
+ * File is opened and closed once during instantiation
  */
 int init_config()
 {
@@ -139,23 +143,17 @@ int init_config()
 	strcpy(config_file_abs, CURR_DIRECTORY);
 	strcat(config_file_abs, CONFIG_FILENAME);
 
-	INIReader reader(config_file_abs);
+	reader = new INIReader(config_file_abs);
 
-	if (reader.ParseError() < 0)
+	if (reader->ParseError() < 0)
 	{
 		char msg[] = "Failed to load configuration file";
 		log(msg, CRIT);
 		return 1;
 	}
-	cout << "Configuration Loaded" <<endl;
-	cout << "Version: " << reader.GetInteger("device", "version", -1) <<endl;
-	cout << "GPS Enabled: " << reader.GetBoolean("device", "enable_gps", true)<<endl;
-	cout << "User Name: " << reader.Get("user", "name", "ANON")<<endl;
-	cout << "User E-mail: " << reader.Get("user", "email", "UNKNOWN")<<endl;
 
-	char msg[] = "Config file initialized";
-	log(msg, INFO);
-
+	//char msg[] = "Config file initialized";
+	//log(msg, INFO);
 	return 0;
 }
 
@@ -270,14 +268,13 @@ int shutdown()
 	log(msg, INFO);
 	log_fh.close();
 	data_fh.close();
+	delete reader;
 	return 0;
 }
 
 /*
  * Testing Method to generate data immediately
  * Grabs all possible values and writes to data handler
- * TODO: Include NMEA formatter within recordDataLine
- * TODO: Figure out why recordDataLine is sensitive
  */
 int recordDataLine()
 {
@@ -286,10 +283,9 @@ int recordDataLine()
 	lsm_sh->getCoordinates();
 	lsm_sh->getHeading();
 
-
 	// Nice to have a line that tells us what we're looking at while debugging
-	data_fh << "YYYY-MM-DD_HHMMSS,Coord_X,Coord_Y,Coord_Z,Heading,Accel_X,Accel_Y,Accel_Z" <<
-                   ",GPS_Feed" <<endl;
+	//data_fh << "YYYY-MM-DD_HHMMSS,Coord_X,Coord_Y,Coord_Z,Heading,Accel_X,Accel_Y,Accel_Z" <<
+    //               ",GPS_Feed" <<endl;
 	data_fh << getDateTime()
             << "," << lsm_sh->getCoorX()
             << "," << lsm_sh->getCoorY()
@@ -339,6 +335,5 @@ int recordDataLine()
 			keepRunning = false;
         }
     }
-    data_fh << endl;
     return 0;
 }
