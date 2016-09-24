@@ -100,12 +100,18 @@ int main()
         return rc;
     }
 
-    // Log while device is marked as active
-    while (reader->GetBoolean("device", "active", true))
+    while(reader->GetBoolean("device", "active", true))
     {
-    	recordDataLine();
-    	// Manual reset of config containing active flag until UI is written
-    	init_config();
+        // Log while device is marked as active
+        while (reader->GetBoolean("device", "enable_logging", true))
+        {
+        	recordDataLine();
+        	// Manual reset of config containing active flag until UI is written
+        	init_config();
+        }
+        // Sleep for a sec before checking if we're turned back on
+    	usleep(1000000); // 1s
+        init_config();
     }
 
     //TODO: Sleep when not active rather than shut down
