@@ -1,0 +1,22 @@
+doctype html
+html
+    head
+        block title
+        title=Title
+
+    body    
+        block navigation
+            a(href='/') Home
+            = "\n"
+            a(href='/accel') Acceleration
+            = "\n"
+            a(href='/gps') GPS
+            = "\n"
+            a(href='/logs') Data Logs
+            = "\n"
+            a(href='/config') Configuration
+            
+        block content
+        
+        block footer
+            p footer 2016
